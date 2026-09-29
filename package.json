@@ -1,0 +1,30 @@
+{
+  "name": "playwright-e2e-framework-template",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Reusable Playwright and TypeScript E2E framework template",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
+    "framework:check": "tsx scripts/framework-check.ts",
+    "public:check": "tsx scripts/public-safety-check.ts",
+    "prepare:reports": "tsx scripts/prepare-reports.ts",
+    "test": "npm run prepare:reports && node scripts/run-playwright.cjs",
+    "test:smoke": "npm run prepare:reports && node scripts/run-playwright.cjs --project=smoke",
+    "test:list": "playwright test --list --reporter=list",
+    "test:list:json": "mkdir -p artifacts && playwright test --list --reporter=json > artifacts/test-list.json",
+    "coverage:check": "npm run test:list:json && tsx scripts/check-coverage.ts",
+    "quality:ci": "npm run typecheck && npm run test:unit && npm run framework:check && npm run coverage:check && npm run public:check",
+    "allure:generate": "node scripts/promote-allure-videos.js artifacts/allure-results && allure generate artifacts/allure-results -o artifacts/allure-report --clean"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@types/node": "^22.0.0",
+    "allure-commandline": "^2.32.0",
+    "allure-playwright": "^3.0.0",
+    "dotenv": "^16.4.5",
+    "tsx": "^4.22.4",
+    "typescript": "^5.5.0"
+  }
+}

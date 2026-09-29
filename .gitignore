@@ -1,0 +1,17 @@
+node_modules/
+dist/
+artifacts/
+test-results/
+playwright-report/
+allure-results/
+allure-report/
+.playwright-cli/
+.playwright-mcp/
+.idea/
+.vscode/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.key
+*.pem
