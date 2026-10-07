@@ -23,7 +23,8 @@ const server = createServer((request, response) => {
     return response.end(`<!doctype html><html lang="en"><title>Framework example</title>
       <main><h1>Counter</h1><output aria-label="Count">Loading</output><button disabled>Increment</button><p role="alert"></p></main>
       <script>
-      const endpoint = '/api/resources/' + encodeURIComponent(new URLSearchParams(location.search).get('resourceId') || '');
+      const resourceId = new URLSearchParams(location.search).get('resourceId');
+      const endpoint = '/api/resources/' + encodeURIComponent(resourceId || '');
       const button = document.querySelector('button');
       const count = document.querySelector('output');
       async function refresh(method) {
@@ -37,7 +38,8 @@ const server = createServer((request, response) => {
         finally { button.disabled = false; }
       }
       button.addEventListener('click', () => refresh('PATCH'));
-      refresh('GET');
+      if (resourceId) refresh('GET');
+      else count.textContent = 'Prepare a resource using the API';
       </script></html>`);
   }
   const owner = request.headers.cookie?.split('; ').find(cookie => cookie.startsWith('example_session='))?.slice('example_session='.length);
