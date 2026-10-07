@@ -15,32 +15,32 @@ export type CleanupResult = Resource & {
 };
 
 function safeRunId(runId: string): string {
-  if (!/^[A-Za-z0-9._-]+$/.test(runId)) throw new Error('Invalid run ID');
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(runId)) throw new Error('Invalid run ID');
   return runId;
 }
 
-export function registryPath(runId: string): string {
-  return resolve(RUN_DATA_DIR, safeRunId(runId), 'resources.jsonl');
+export function registryPath(runId: string, scopeId?: string): string {
+  return resolve(RUN_DATA_DIR, safeRunId(runId), ...(scopeId ? [safeRunId(scopeId)] : []), 'resources.jsonl');
 }
 
-export function summaryPath(runId: string): string {
-  return resolve(RUN_DATA_DIR, safeRunId(runId), 'cleanup-summary.json');
+export function summaryPath(runId: string, scopeId?: string): string {
+  return resolve(RUN_DATA_DIR, safeRunId(runId), ...(scopeId ? [safeRunId(scopeId)] : []), 'cleanup-summary.json');
 }
 
 /** Record only resources created in the current run; never store credentials. */
-export function registerResource(input: Pick<Resource, 'kind' | 'id'>): Resource {
-  const runId = process.env.E2E_RUN_ID;
+export function registerResource(input: Pick<Resource, 'kind' | 'id'>, options: { runId?: string; scopeId?: string } = {}): Resource {
+  const runId = options.runId || process.env.E2E_RUN_ID;
   if (!runId) throw new Error('E2E_RUN_ID is required to register a resource');
   if (!input.kind.trim() || !input.id.trim()) throw new Error('Resource kind and ID are required');
   const resource = { ...input, runId, createdAt: new Date().toISOString() };
-  const file = registryPath(runId);
+  const file = registryPath(runId, options.scopeId);
   mkdirSync(dirname(file), { recursive: true });
   appendFileSync(file, `${JSON.stringify(resource)}\n`, 'utf8');
   return resource;
 }
 
-export function readResources(runId: string): Resource[] {
-  const file = registryPath(runId);
+export function readResources(runId: string, scopeId?: string): Resource[] {
+  const file = registryPath(runId, scopeId);
   if (!existsSync(file)) return [];
   return readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => {
     const resource = JSON.parse(line) as Resource;
@@ -55,21 +55,22 @@ export function readResources(runId: string): Resource[] {
 export async function cleanupResources(
   runId: string,
   cleanup: (resource: Resource) => Promise<void>,
+  scopeId?: string,
 ): Promise<CleanupResult[]> {
   const results: CleanupResult[] = [];
-  for (const resource of readResources(runId).reverse()) {
+  for (const resource of readResources(runId, scopeId).reverse()) {
     try {
       await cleanup(resource);
       results.push({ ...resource, status: 'cleaned' });
-    } catch (error) {
+    } catch {
       results.push({
         ...resource,
         status: 'unresolved',
-        detail: error instanceof Error ? error.message : String(error),
+        detail: 'Cleanup callback failed; inspect exact resource and adapter locally',
       });
     }
   }
-  const file = summaryPath(runId);
+  const file = summaryPath(runId, scopeId);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, JSON.stringify({ runId, results }, null, 2));
   return results;

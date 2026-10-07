@@ -1,52 +1,63 @@
 # Playwright E2E Framework Template
 
-A small Playwright + TypeScript foundation for real end-to-end tests. This branch contains framework code and a self-contained counter demo. It contains no application accounts, API snapshot, business data, or product test scenarios.
+A reusable Playwright + TypeScript source template with native fixtures, typed API contracts, precise cleanup, coverage mapping and execution reports.
 
-## Included
+[中文说明](README.zh-CN.md) · [Adoption guide](docs/adoption-guide.md) · [Architecture](docs/architecture.md) · [Reference project analysis](docs/reference-projects.md)
 
-- Playwright configuration with one worker by default, a run ID, trace/video/screenshot artifacts, and HTML/Allure reporting.
-- Stable `pageId/scenarioId` coverage annotations and a check that every discovered test is classified.
-- JSON and Markdown quality reports with discovered, passed, failed, skipped, and not-run counts.
-- An API client that checks HTTP status and accepts application-defined business-code and schema checks.
-- A run-scoped resource registry. Application code supplies exact-ID cleanup behavior.
-- A conservative regression selector that maps requirement and API changes to scenario IDs.
-- Report archiving, static framework checks, a public-content check, and GitHub Actions quality gates.
+## Start locally
 
-## Quick start
+Use Node.js **22 or 24** and npm. CI covers Linux/Node 22 and Windows/Node 24; macOS is also verified locally. No application account or external service is needed for bundled tests.
 
 ```bash
 npm ci
 npx playwright install chromium
 npm run quality:ci
-npm run test:smoke
+npm test
 ```
 
-The demo is local and does not call a real service. Its passing result proves only that this template runs. It is not evidence of any application's business behavior.
+On Linux, install browser system dependencies with `npx playwright install --with-deps chromium`. Allure HTML generation is optional and requires Java; the standard Playwright HTML and JSON/Markdown reports do not.
 
-## Connect an application
+Clone the repository or download a ZIP. ZIP usage does not require Git. Keep the lockfile and use `npm ci`.
 
-1. Copy `.env.example` to `.env` and set `BASE_URL` to an isolated test environment. Keep credentials in local environment variables or CI secrets.
-2. Define verified paths in `tests/support/api/routes.ts`. Check the live API contract and browser requests before adding API calls.
-3. Add authentication, page actions, and test-data fixtures under `tests/fixtures` and `tests/support`. Keep these application modules outside the reusable core.
-4. Replace `tests/e2e/demo.spec.ts` and its entry in `tests/coverage/page-coverage.ts` with application scenarios. Bind each business test with `coverageScenario(['pageId', 'scenarioId'])`.
-5. Use the run ID or returned resource IDs for test data. Register every created resource with `registerResource`; connect an exact-ID cleanup function to `cleanupResources` in your application teardown.
-6. Run `npm run quality:ci`, then the affected Playwright project against the real environment. Inspect traces and the quality report. Static checks and test discovery do not count as an E2E pass.
+## Included
 
-The reusable boundaries are described in [docs/architecture.md](docs/architecture.md). Follow [docs/adoption-guide.md](docs/adoption-guide.md) when connecting another application.
+- Discover all `tests/e2e/**/*.spec.ts` with the `chromium` project.
+- Local example: worker login → API preparation → UI action → backend verification → exact-ID cleanup. Separate contexts verify anonymous and other-identity rejection.
+- `workerStorageState` extension and a new isolated browser context per test.
+- `resources.track(...)` fixture: per-test-attempt ledger, reverse-order cleanup, summary attachment, failed cleanup fails the test.
+- API status/business-code assertions, runtime schema validators, explicit empty responses and response disposal.
+- Stable `pageId/scenarioId` mapping, execution-state reports and conservative regression selection.
+- HTML/Allure reports, trace/video/screenshots and previous-run report archives.
+- Syntax-aware baseline checks, no-Git adoption checks, and Linux/Windows CI.
+
+The local example proves framework behavior only. It does not establish any product's business coverage. This is a source template, not a published npm package.
+
+## Connect your application
+
+1. Copy `.env.example` to `.env`; set `BASE_URL` to an isolated test environment and `E2E_SKIP_EXAMPLES=true`.
+2. Add your own verified routes, response validators, page actions and authentication adapter. See the [working example](examples/tests/lifecycle.spec.ts) and [authentication fixture](examples/tests/fixtures.ts).
+3. Put new tests under `tests/e2e/`. Use the shared fixtures; register real scenarios in `tests/coverage/page-coverage.ts`. Remove the demo and its coverage entry together when replacing it.
+4. Register every created resource immediately with `resources.track({ kind, id }, cleanup)`. The callback must delete/restore only that exact ID and verify the outcome.
+5. Run static gates, inspect discovered tests, then execute your actual target tests and review evidence.
+
+Start with one worker. `E2E_ISOLATED_WORKERS=true` is an explicit acknowledgment, not proof of isolation. Increase workers only after implementing independent accounts/data scopes. See the [adoption guide](docs/adoption-guide.md) for concrete examples and recovery limitations.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npm run quality:ci` | Typecheck, unit checks, framework rules, coverage mapping, and public-content scan |
+| `npm run quality:ci` | Typecheck, unit tests, AST rules, coverage mapping |
 | `npm run test:list` | Show discovered tests |
-| `npm run test:smoke` | Run the local demo in Chromium |
-| `npm test` | Run configured projects |
-| `npm run allure:generate` | Build an Allure report from the latest results |
+| `npm run test:smoke` | Run the counter demo |
+| `npm run test:examples` | Run local authentication/UI/API/cleanup examples |
+| `npm test` | Run all enabled projects |
+| `npm run test:adoption` | Verify ZIP usage, new-spec discovery and secret gate behavior |
+| `npm run test:lifecycle` | Verify teardown after a failed body and failure on unresolved cleanup; two expected failures are checked by the harness |
+| `npm run release:check` | Static quality plus publication safety scan |
+| `npx playwright show-report artifacts/playwright-report` | View browser report |
+| `npm run allure:generate` | Generate optional Allure HTML (requires Java) |
 
-Reports are written under ignored `artifacts/`. The previous run is archived before a new run; `REPORT_HISTORY_LIMIT` controls how many archives are kept.
-
-Parallel execution is disabled by default. Set `E2E_ISOLATED_WORKERS=true` only after each worker has independent authentication, data, and cleanup scope.
+Reports and cleanup ledgers live under ignored `artifacts/`. `REPORT_HISTORY_LIMIT` controls previous-run archives. `public:check` is a heuristic publication gate; inspect the release files and Git history as well. It cannot guarantee the absence of every secret or business detail.
 
 ## License
 

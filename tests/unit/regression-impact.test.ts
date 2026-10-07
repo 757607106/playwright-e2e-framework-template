@@ -30,3 +30,12 @@ test('unknown API changes require broader regression', () => {
   assert.equal(result.requiresBroadRegression, true);
   assert.equal(result.unmappedApiOperations.length, 1);
 });
+
+test('unknown rule changes require broader regression', () => {
+  const result = selectRegressionScenarios([], {
+    changedRequirementIds: [], changedRuleRefs: ['unmapped-rule'], changedApiOperations: [],
+    requirementsComparisonAvailable: true, apiComparisonAvailable: true,
+  });
+  assert.equal(result.requiresBroadRegression, true);
+  assert.deepEqual(result.unmappedRuleRefs, ['unmapped-rule']);
+});

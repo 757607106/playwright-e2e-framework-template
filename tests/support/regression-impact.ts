@@ -42,11 +42,14 @@ export function selectRegressionScenarios(pages: PageCoverage[], input: ImpactIn
   const selectedApiKeys = new Set(selected.flatMap((scenario) => scenario.reasons
     .filter((reason) => reason.startsWith('api:')).map((reason) => reason.slice(4))));
   const unmappedApiOperations = input.changedApiOperations.filter((change) => !selectedApiKeys.has(change.key));
+  const mappedRules = new Set(pages.flatMap(page => page.scenarios.flatMap(scenario => scenario.ruleRefs || [])));
+  const unmappedRuleRefs = input.changedRuleRefs.filter(rule => !mappedRules.has(rule));
   const comparisonComplete = input.requirementsComparisonAvailable && input.apiComparisonAvailable;
   return {
     selected,
     unmappedRequirementIds,
+    unmappedRuleRefs,
     unmappedApiOperations,
-    requiresBroadRegression: !comparisonComplete || Boolean(unmappedRequirementIds.length || unmappedApiOperations.length),
+    requiresBroadRegression: !comparisonComplete || Boolean(unmappedRequirementIds.length || unmappedRuleRefs.length || unmappedApiOperations.length),
   };
 }

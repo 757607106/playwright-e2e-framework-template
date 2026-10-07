@@ -1,0 +1,47 @@
+import ts from 'typescript';
+
+/** Syntax-aware baseline; not a substitute for the full Playwright ESLint plugin. */
+export function checkTestSource(source: string, file: string): string[] {
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const errors: string[] = [];
+  const aliases = new Set(['test', 'describe']);
+  let fixtureImport = false;
+  for (const statement of tree.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const imports = statement.importClause?.namedBindings;
+    if (!imports || !ts.isNamedImports(imports)) continue;
+    for (const item of imports.elements) {
+      const original = item.propertyName?.text || item.name.text;
+      if (original === 'test') {
+        aliases.add(item.name.text);
+        if (/(?:^|\/)fixtures(?:\/.*)?$/.test(statement.moduleSpecifier.text)) fixtureImport = true;
+      }
+    }
+  }
+  const spec = file.endsWith('.spec.ts');
+  if (spec && !/^[a-z0-9]+(?:-[a-z0-9]+)*\.spec\.ts$/.test(file.split('/').at(-1) || '')) errors.push('spec name must use kebab-case');
+  if (file.startsWith('tests/e2e/') && spec && !fixtureImport) errors.push('import test from tests/fixtures');
+  function rootName(node: ts.Expression): string | undefined {
+    if (ts.isIdentifier(node)) return node.text;
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) return rootName(node.expression);
+    return undefined;
+  }
+  function visit(node: ts.Node): void {
+    if (ts.isAsExpression(node) && node.type.kind === ts.SyntaxKind.AnyKeyword) errors.push('unbounded any casts are forbidden');
+    if (ts.isCallExpression(node)) {
+      const expression = node.expression;
+      const method = ts.isPropertyAccessExpression(expression) ? expression.name.text
+        : ts.isElementAccessExpression(expression) && expression.argumentExpression && ts.isStringLiteral(expression.argumentExpression) ? expression.argumentExpression.text : undefined;
+      if (method === 'only' && aliases.has(rootName(expression) || '')) errors.push('exclusive tests are forbidden');
+      if (method === 'waitForTimeout') errors.push('fixed waits are forbidden');
+      if (spec && method && ['click', 'dblclick', 'check', 'uncheck', 'fill', 'hover', 'selectOption', 'tap', 'setChecked', 'press'].includes(method)) {
+        for (const argument of node.arguments) if (ts.isObjectLiteralExpression(argument)) {
+          for (const property of argument.properties) if (ts.isPropertyAssignment(property) && property.name.getText(tree).replace(/['"]/g, '') === 'force' && property.initializer.kind === ts.SyntaxKind.TrueKeyword) errors.push('forced UI actions are forbidden');
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(tree);
+  return [...new Set(errors)];
+}

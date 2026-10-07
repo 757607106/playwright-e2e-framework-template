@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import {
@@ -10,10 +11,21 @@ import {
 } from './tests/support/paths';
 
 dotenv.config({ path: join(__dirname, '.env') });
-process.env.E2E_RUN_ID ||= new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+process.env.E2E_RUN_ID ||= `${Date.now()}-${randomUUID()}`;
 mkdirSync(ARTIFACTS_TMP_DIR, { recursive: true });
 
 const workers = Number(process.env.TEST_WORKERS || 1);
+const examplesEnabled = process.env.E2E_SKIP_EXAMPLES !== 'true';
+const examplePort = Number(process.env.EXAMPLE_PORT || 4173);
+if (!Number.isInteger(examplePort) || examplePort < 1024 || examplePort > 65535) {
+  throw new Error('EXAMPLE_PORT must be an integer between 1024 and 65535');
+}
+const exampleURL = `http://127.0.0.1:${examplePort}`;
+function positiveNumber(name: string, fallback: number): number {
+  const value = Number(process.env[name] || fallback);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be positive`);
+  return value;
+}
 function choice<const T extends readonly string[]>(name: string, values: T, fallback: T[number]): T[number] {
   const value = process.env[name];
   if (!value) return fallback;
@@ -33,8 +45,8 @@ export default defineConfig({
   fullyParallel: false,
   workers,
   retries: 0,
-  timeout: Number(process.env.TEST_TIMEOUT || 30_000),
-  expect: { timeout: Number(process.env.EXPECT_TIMEOUT || 10_000) },
+  timeout: positiveNumber('TEST_TIMEOUT', 30_000),
+  expect: { timeout: positiveNumber('EXPECT_TIMEOUT', 10_000) },
   outputDir: PLAYWRIGHT_TEST_RESULTS_DIR,
   reporter: [
     ['list'],
@@ -51,9 +63,18 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'smoke',
-      testMatch: /demo\.spec\.ts/,
+      name: 'chromium',
+      testMatch: '**/*.spec.ts',
       use: { ...devices['Desktop Chrome'] },
     },
+    ...(examplesEnabled ? [{
+      name: 'local-example', testDir: './examples/tests', testMatch: '**/*.spec.ts',
+      use: { ...devices['Desktop Chrome'], baseURL: exampleURL },
+    }] : []),
   ],
+  webServer: examplesEnabled ? {
+    command: 'node --import tsx examples/local-app/server.ts',
+    url: `${exampleURL}/health`, reuseExistingServer: false, timeout: 15_000,
+    env: { EXAMPLE_PORT: String(examplePort) },
+  } : undefined,
 });
