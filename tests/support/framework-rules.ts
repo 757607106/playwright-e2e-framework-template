@@ -1,8 +1,8 @@
 import ts from 'typescript';
 
 /** Syntax-aware baseline; not a substitute for the full Playwright ESLint plugin. */
-export function checkTestSource(source: string, file: string): string[] {
-  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+export function checkTestSource(source: string | ts.SourceFile, file: string, checker?: ts.TypeChecker): string[] {
+  const tree = typeof source === 'string' ? ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true) : source;
   const errors: string[] = [];
   const aliases = new Set(['test', 'describe']);
   let fixtureImport = false;
@@ -26,7 +26,17 @@ export function checkTestSource(source: string, file: string): string[] {
     if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) return rootName(node.expression);
     return undefined;
   }
+  function isPromiseLike(type: ts.Type, node: ts.Node): boolean {
+    if (!checker) return false;
+    if (type.isUnion()) return type.types.some(member => isPromiseLike(member, node));
+    const then = checker.getPropertyOfType(type, 'then');
+    return Boolean(then && checker.getSignaturesOfType(checker.getTypeOfSymbolAtLocation(then, node), ts.SignatureKind.Call).length);
+  }
   function visit(node: ts.Node): void {
+    if (checker && !file.startsWith('tests/unit/') && ts.isExpressionStatement(node)) {
+      const expression = ts.isVoidExpression(node.expression) ? node.expression.expression : node.expression;
+      if (isPromiseLike(checker.getTypeAtLocation(expression), expression)) errors.push('floating promises must be awaited or returned');
+    }
     if (ts.isAsExpression(node) && node.type.kind === ts.SyntaxKind.AnyKeyword) errors.push('unbounded any casts are forbidden');
     if (ts.isCallExpression(node)) {
       const expression = node.expression;

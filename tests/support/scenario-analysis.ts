@@ -4,6 +4,8 @@ import type {
 } from '../coverage/page-coverage';
 import {
   hasCoverageClassification,
+  coverageAnnotationErrors,
+  isCoverageId,
   isCoverageOnlyClassification,
   scenarioKey,
   scenarioKeysFromAnnotations,
@@ -21,6 +23,7 @@ export type CoverageTest = {
   id: string;
   title: string;
   status?: ExecutionStatus;
+  outcome?: 'expected' | 'unexpected' | 'flaky' | 'skipped';
   annotations?: CoverageAnnotation[];
 };
 
@@ -35,7 +38,7 @@ export type ScenarioResult = {
   level: CoverageScenario['level'];
   requirementIds: string[];
   implemented: boolean;
-  status: 'passed' | 'failed' | 'not_run' | 'skipped' | 'unmapped';
+  status: 'passed' | 'failed' | 'flaky' | 'partial' | 'not_run' | 'skipped' | 'unmapped';
   matchedTests: string[];
   matchedTestIds: string[];
   missingEvidence: string[];
@@ -60,6 +63,34 @@ export function titleMatchesEvidence(title: string, evidence: string) {
 
 function isFailure(status: ExecutionStatus | undefined) {
   return ['failed', 'timedOut', 'interrupted'].includes(status ?? '');
+}
+
+function failedExecution(test: CoverageTest): boolean {
+  return isFailure(test.status) || test.outcome === 'unexpected';
+}
+
+function executionStatus(tests: CoverageTest[]): ScenarioResult['status'] {
+  if (tests.some(failedExecution)) return 'failed';
+  if (tests.every(test => test.status === undefined)) return 'not_run';
+  if (tests.every(test => test.status === 'skipped')) return 'skipped';
+  if (!tests.every(test => test.status === 'passed')) return 'partial';
+  return tests.some(test => test.outcome === 'flaky') ? 'flaky' : 'passed';
+}
+
+/** Reject ambiguous IDs before calculating a coverage denominator. */
+export function assertCoverageDefinitions(pages: PageCoverage[]): void {
+  const pageIds = new Set<string>();
+  for (const page of pages) {
+    if (!isCoverageId(page.id)) throw new Error('Invalid coverage page ID');
+    if (pageIds.has(page.id)) throw new Error(`Duplicate coverage page ID: ${page.id}`);
+    pageIds.add(page.id);
+    const scenarioIds = new Set<string>();
+    for (const scenario of page.scenarios) {
+      const key = scenarioKey(page.id, scenario.id);
+      if (scenarioIds.has(scenario.id)) throw new Error(`Duplicate coverage scenario ID: ${key}`);
+      scenarioIds.add(scenario.id);
+    }
+  }
 }
 
 function scenarioResult(
@@ -97,9 +128,6 @@ function scenarioResult(
   ];
   const matchedById = new Map(matched.map((test) => [test.id, test]));
   const matchedTests = [...matchedById.values()];
-  const statuses = matchedTests
-    .map((test) => test.status)
-    .filter((status): status is ExecutionStatus => Boolean(status));
   const missingEvidence = evidenceGroups
     .filter((group) => group.tests.length === 0)
     .map((group) => group.evidence);
@@ -107,29 +135,15 @@ function scenarioResult(
   let status: ScenarioResult['status'] = 'unmapped';
   if (implemented) {
     // A failed supporting test must never be hidden by another passing test.
-    if (statuses.some(isFailure)) {
+    if (matchedTests.some(failedExecution)) {
       status = 'failed';
     } else if (annotatedTests.length > 0) {
-      if (statuses.includes('passed')) status = 'passed';
-      else if (statuses.length > 0) status = 'skipped';
-      else status = 'not_run';
+      status = executionStatus(matchedTests);
     } else {
-      const groupStates = relevantGroups.map((group) => {
-        const groupStatuses = group.tests
-          .map((test) => test.status)
-          .filter((value): value is ExecutionStatus => Boolean(value));
-        return {
-          passed: groupStatuses.includes('passed'),
-          skipped:
-            groupStatuses.length > 0 &&
-            groupStatuses.every((value) => value === 'skipped'),
-          executed: groupStatuses.length > 0,
-        };
-      });
-      if (groupStates.every((group) => group.passed)) status = 'passed';
-      else if (groupStates.every((group) => group.skipped)) status = 'skipped';
-      else if (groupStates.some((group) => group.executed)) status = 'skipped';
-      else status = 'not_run';
+      const groupStates = relevantGroups.map(group => executionStatus(group.tests));
+      if (evidenceMode === 'any' && groupStates.includes('passed')) status = 'passed';
+      else if (evidenceMode === 'any' && groupStates.includes('flaky')) status = 'flaky';
+      else status = executionStatus(matchedTests);
     }
   }
 
@@ -155,8 +169,12 @@ export function analyzeCoverage<T extends CoverageTest>(
   pages: PageCoverage[],
   tests: T[],
 ) {
+  assertCoverageDefinitions(pages);
+  const invalidCoverageAnnotations = tests.flatMap(test => coverageAnnotationErrors(test.annotations)
+    .map(({ annotation, reason }) => ({ testId: test.id, title: test.title, ...annotation, reason })));
+  const validTests = tests.filter(test => coverageAnnotationErrors(test.annotations).length === 0);
   const scenarios = pages.flatMap((page) =>
-    page.scenarios.map((current) => scenarioResult(page, current, tests)),
+    page.scenarios.map((current) => scenarioResult(page, current, validTests)),
   );
   const validScenarioKeys = new Set(
     pages.flatMap((page) =>
@@ -181,5 +199,6 @@ export function analyzeCoverage<T extends CoverageTest>(
     scenarios,
     unclassifiedTests,
     invalidScenarioAnnotations,
+    invalidCoverageAnnotations,
   };
 }

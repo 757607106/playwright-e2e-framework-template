@@ -5,13 +5,17 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import {
   ALLURE_RESULTS_DIR,
+  ARTIFACTS_DIR,
   ARTIFACTS_TMP_DIR,
   PLAYWRIGHT_HTML_REPORT_DIR,
   PLAYWRIGHT_TEST_RESULTS_DIR,
 } from './tests/support/paths';
+import { acquireReportLock } from './scripts/report-lock.cjs';
 
 dotenv.config({ path: join(__dirname, '.env') });
 process.env.E2E_RUN_ID ||= `${Date.now()}-${randomUUID()}`;
+// Listing is read-only; execution must acquire ownership before Playwright clears output directories.
+if (!process.argv.includes('--list')) acquireReportLock(ARTIFACTS_DIR);
 mkdirSync(ARTIFACTS_TMP_DIR, { recursive: true });
 
 const workers = Number(process.env.TEST_WORKERS || 1);

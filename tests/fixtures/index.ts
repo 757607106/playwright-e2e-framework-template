@@ -12,7 +12,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   runId: async ({}, use) => {
     await use(process.env.E2E_RUN_ID || 'local');
   },
-  resources: async ({ runId, request }, use, testInfo) => {
+  resources: [async ({ runId, request }, use, testInfo) => {
     void request; // Cleanup callbacks may use this context; dispose it after resource teardown.
     const hash = createHash('sha256').update(testInfo.testId).digest('hex').slice(0, 20);
     const tracker = new ResourceTracker(runId, `${hash}-${testInfo.parallelIndex}-${testInfo.retry}-${testInfo.repeatEachIndex}`);
@@ -25,7 +25,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       });
       assertCleanupComplete(results);
     }
-  },
+  }, { timeout: 30_000 }],
 });
 
 export { expect };

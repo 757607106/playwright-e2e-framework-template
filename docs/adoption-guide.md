@@ -82,6 +82,10 @@ The application supplies those operations. Register immediately after creation, 
 
 Each attempt has a ledger and summary at `artifacts/run-data/<runId>/<scopeId>/`. `scopeId` contains the test hash, worker slot, retry and repeat index. The summary is also attached to the test report. Unresolved cleanup fails the test; other registered resources still get a cleanup attempt. Error messages are not copied into the ledger because they may contain response secrets; inspect the exact ID and local cleanup adapter when recovering.
 
+Cleanup has a 5-second per-resource timeout and a 20-second overall budget, within a separate 30-second resources-fixture timeout. Results are persisted atomically after each attempt; resources left when the overall budget expires remain unresolved. A callback can accept a second `AbortSignal` argument to stop work on timeout. Arbitrary work ignoring the signal may continue, so adapters should also bound their own requests. Direct recovery callers can pass `{ timeoutMs, totalTimeoutMs }` as the fourth argument of `cleanupResources`.
+
+Damaged ledger entries are reported with line numbers and without raw contents or inferred IDs. Validated records from the same run are still cleaned, and any damaged entry makes cleanup fail. `readResources` remains strict and rejects a damaged ledger; `cleanupResources` handles recovery of validated entries. Cleanup results may include a `kind: 'ledger'` issue without a resource ID.
+
 Hard kills, machine shutdowns, and a failure between backend creation and ID receipt cannot guarantee automatic cleanup. Build an application recovery tool that reads the persisted ledger with `readResources(runId, scopeId)` and uses exact-ID, idempotent cleanup. Never widen deletion criteria after a failure. The older `registerResource`/`cleanupResources` functions remain available for run-wide application teardown; do not also register the same object in the fixture tracker.
 
 ## 6. Bind meaningful coverage
@@ -90,11 +94,15 @@ Register stable page/scenario IDs in `tests/coverage/page-coverage.ts`; import `
 
 L0/L1 describe reachability/interaction, L2 requires an actual business result, L3/L4 connected workflows. Mapped/discovered tests are not passed tests. Review the separate execution counts in `artifacts/quality-report/`.
 
+Page IDs and scenario IDs accept letters, digits, dots, underscores and hyphens, beginning with a letter or digit. Duplicate IDs and invalid/empty classification annotations fail the quality gate. A test cannot combine a product scenario with support/exclude classification. All bound tests must pass; mixed passed/skipped/not-run states are `partial`. Retry recovery is `flaky`; reports retain each retry, status and duration. The legacy `evidenceMode: 'any'` remains an explicit alternative for title-based evidence.
+
 The selector requests broader regression when requirements, API changes or rule changes are unmapped. It recommends scope; it does not run tests or prove selected coverage is sufficient.
 
 ## 7. Verify changes and publish
 
-Run `npm run quality:ci`, the affected real projects and inspect trace/API/cleanup evidence. Run `npm run test:lifecycle` after lifecycle changes; its harness asserts two intentional failures rather than adding failed tests to ordinary regression reports. CI exercises Linux/Node 22 and Windows/Node 24.
+Run `npm run quality:ci`, the affected real projects and inspect trace/API/cleanup evidence. Run `npm run test:lifecycle` after lifecycle changes; its harness asserts four intentional failures rather than adding failed tests to ordinary regression reports. CI exercises Linux/Node 22 and Windows/Node 24.
+
+Run preparation, native execution and Allure generation acquire the same report lock before changing report directories. Subprocesses of the owner borrow its token; unrelated runs are rejected. Use separate checkouts for simultaneous runs. After a hard kill, verify the owner PID recorded in `artifacts/.report-lock` is no longer running before removing the lock. Do not bypass the guard by copying its token into another invocation.
 
 Before public release, run `npm run release:check` and inspect both files and Git history. The public scan is heuristic; confidential product information and undetected secrets still need review. Reports may contain sensitive target data, so review CI artifact settings when adopting the workflow for a real system.
 

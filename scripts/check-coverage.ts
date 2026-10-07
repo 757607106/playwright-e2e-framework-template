@@ -30,4 +30,5 @@ console.log(`Discovered ${tests.length} tests; missing scenarios ${missing.lengt
 for (const item of missing) console.error(`Missing: ${item.pageId}/${item.scenarioId}`);
 for (const item of coverage.unclassifiedTests) console.error(`Unclassified: ${item.title}`);
 for (const item of coverage.invalidScenarioAnnotations) console.error(`Invalid: ${item.title} => ${item.scenarioKey}`);
-if (missing.length || coverage.unclassifiedTests.length || coverage.invalidScenarioAnnotations.length) process.exitCode = 1;
+for (const item of coverage.invalidCoverageAnnotations) console.error(`Invalid classification: ${item.title} => ${item.reason}`);
+if (missing.length || coverage.unclassifiedTests.length || coverage.invalidScenarioAnnotations.length || coverage.invalidCoverageAnnotations.length) process.exitCode = 1;

@@ -22,7 +22,7 @@ Reviewed on 2026-10-07. Strengths below describe upstream capabilities. Costs an
 
 - Add real target integration examples only when their public UI/API contracts and isolated accounts can be maintained.
 - Add opt-in Firefox/WebKit projects when consumers need browser compatibility coverage.
-- For growing suites, adopt the Playwright ESLint plugin and typed lint rules, including missing-await checks. The current AST guard is deliberately a baseline and does not perform data-flow analysis.
+- For growing suites, adopt the Playwright ESLint plugin and broader typed lint rules. The current guard checks floating promise statements with the TypeScript checker; it does not track assigned promises through arbitrary data flow or prove business assertions.
 - Add schema-based validation of coverage definitions and requirement imports before adding more change-selection automation.
 - Version reusable core modules separately once multiple independent consumers demonstrate a stable API. For now this is a source template, not a published npm library.
 

@@ -28,7 +28,7 @@ Clone the repository or download a ZIP. ZIP usage does not require Git. Keep the
 - API status/business-code assertions, runtime schema validators, explicit empty responses and response disposal.
 - Stable `pageId/scenarioId` mapping, execution-state reports and conservative regression selection.
 - HTML/Allure reports, trace/video/screenshots and previous-run report archives.
-- Syntax-aware baseline checks, no-Git adoption checks, and Linux/Windows CI.
+- Syntax-aware baseline checks and typed floating-promise checks, no-Git adoption checks, and Linux/Windows CI.
 
 The local example proves framework behavior only. It does not establish any product's business coverage. This is a source template, not a published npm package.
 
@@ -57,12 +57,18 @@ Start with one worker. `E2E_ISOLATED_WORKERS=true` is an explicit acknowledgment
 | `npm run test:examples` | Run local authentication/UI/API/cleanup examples |
 | `npm test` | Run all enabled projects |
 | `npm run test:adoption` | Verify ZIP usage, new-spec discovery and secret gate behavior |
-| `npm run test:lifecycle` | Verify teardown after a failed body and failure on unresolved cleanup; two expected failures are checked by the harness |
+| `npm run test:lifecycle` | Verify failed-body teardown, cleanup errors/timeouts and damaged ledgers; four intentional failures are checked by the harness |
 | `npm run release:check` | Static quality plus publication safety scan |
 | `npx playwright show-report artifacts/playwright-report` | View browser report |
 | `npm run allure:generate` | Generate optional Allure HTML (requires Java) |
 
 Reports and cleanup ledgers live under ignored `artifacts/`. `REPORT_HISTORY_LIMIT` controls previous-run archives. `public:check` is a heuristic publication gate; inspect the release files and Git history as well. It cannot guarantee the absence of every secret or business detail.
+
+All tests bound to a scenario must pass for it to be `passed`; mixed execution is `partial`, and retry recovery is `flaky` with all attempts retained. Coverage IDs must be unique, and support/exclude annotations need a nonempty reason. Business-result assertions still require application review.
+
+Cleanup defaults to 5 seconds per resource and 20 seconds per attempt, with an independent fixture timeout of 30 seconds. Each result is persisted immediately. Valid ledger records are cleaned even if another record is damaged; damaged entries and timeouts remain unresolved and fail the test. Cleanup adapters can observe the supplied `AbortSignal`; a timeout cannot cancel arbitrary adapter work that ignores it.
+
+Report preparation, execution and Allure generation share an exclusive `artifacts/.report-lock`. Concurrent runs in the same checkout fail before altering reports; use separate checkouts to run concurrently. Normal exit releases the lock. After a hard kill, verify the recorded owner PID has exited before removing a leftover lock.
 
 ## License
 

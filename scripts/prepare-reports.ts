@@ -19,6 +19,7 @@ import {
   buildReportArchiveName,
   type ReportMetadata,
 } from '../tests/support/report-naming';
+import { withReportLock } from './report-lock.cjs';
 
 export const ACTIVE_REPORT_DIRECTORIES = [
   'allure-results',
@@ -113,26 +114,28 @@ function preserveAllureHistory() {
 }
 
 if (require.main === module) {
-  preserveAllureHistory();
-  const configuredLimit = Number(process.env.REPORT_HISTORY_LIMIT ?? '20');
-  const historyLimit = Number.isFinite(configuredLimit)
-    ? Math.max(0, Math.floor(configuredLimit))
-    : 20;
-  const result = archiveReports({
-    artifactsDir: ARTIFACTS_DIR,
-    historyDir: REPORT_HISTORY_DIR,
-    historyLimit,
-  });
-  if (!result.destination) {
-    console.log('[Reports] 没有上一轮报告需要归档。');
-  } else {
-    console.log(
-      `[Reports] 已归档 ${result.archived.length} 个报告目录到 ${resolve(result.destination)}`,
-    );
-    if (result.pruned.length > 0) {
+  withReportLock(ARTIFACTS_DIR, () => {
+    preserveAllureHistory();
+    const configuredLimit = Number(process.env.REPORT_HISTORY_LIMIT ?? '20');
+    const historyLimit = Number.isFinite(configuredLimit)
+      ? Math.max(0, Math.floor(configuredLimit))
+      : 20;
+    const result = archiveReports({
+      artifactsDir: ARTIFACTS_DIR,
+      historyDir: REPORT_HISTORY_DIR,
+      historyLimit,
+    });
+    if (!result.destination) {
+      console.log('[Reports] 没有上一轮报告需要归档。');
+    } else {
       console.log(
-        `[Reports] 按 REPORT_HISTORY_LIMIT=${historyLimit} 移除旧归档: ${result.pruned.join(', ')}`,
+        `[Reports] 已归档 ${result.archived.length} 个报告目录到 ${resolve(result.destination)}`,
       );
+      if (result.pruned.length > 0) {
+        console.log(
+          `[Reports] 按 REPORT_HISTORY_LIMIT=${historyLimit} 移除旧归档: ${result.pruned.join(', ')}`,
+        );
+      }
     }
-  }
+  });
 }

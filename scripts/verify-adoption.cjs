@@ -32,6 +32,16 @@ test('Adoption: new spec is discovered', coverageSupport('Consumer adoption veri
   run(['--import', 'tsx', 'scripts/check-coverage.ts']);
   run(['--import', 'tsx', 'scripts/public-safety-check.ts']);
   run([require.resolve('@playwright/test/cli'), 'test', 'adoption-probe.spec.ts', '--project=chromium', '--reporter=json']);
+  writeFileSync(join(target, 'tests/e2e/retry-probe.spec.ts'), `import { test, expect } from '../fixtures';
+import { coverageSupport } from '../support/annotations';
+test('Adoption: retry history is visible', coverageSupport('Intentional retry reporter verification'), async ({}, testInfo) => {
+  expect(testInfo.retry).toBe(1);
+});\n`);
+  run([require.resolve('@playwright/test/cli'), 'test', 'retry-probe.spec.ts', '--project=chromium', '--retries=1']);
+  const retryReport = JSON.parse(readFileSync(join(target, 'artifacts/quality-report/quality-report.json'), 'utf8'));
+  if (retryReport.counts.flaky !== 1 || retryReport.counts.passed !== 0
+    || retryReport.tests[0].outcome !== 'flaky' || retryReport.tests[0].attempts.length !== 2
+    || retryReport.tests[0].attempts[0].status !== 'failed') throw new Error('Retry recovery was reported as a stable pass');
   run(['scripts/init-agents.cjs', '--project=chromium'], 1);
   if (existsSync(join(target, 'tests/e2e/seed.spec.ts'))) throw new Error('Initialization silently created a consumer seed');
   // Initialize in the no-Git consumer copy; preserve custom definitions.

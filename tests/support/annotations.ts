@@ -6,8 +6,29 @@ export type CoverageAnnotation = {
   description?: string;
 };
 
+export function isCoverageId(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+}
+
 export function scenarioKey(pageId: string, scenarioId: string) {
+  if (!isCoverageId(pageId) || !isCoverageId(scenarioId)) throw new Error('Invalid page/scenario ID');
   return `${pageId}/${scenarioId}`;
+}
+
+export function coverageAnnotationErrors(annotations: readonly CoverageAnnotation[] = []) {
+  const relevant = annotations.filter(annotation => [SCENARIO_ANNOTATION, COVERAGE_ANNOTATION].includes(annotation.type));
+  const errors = relevant.flatMap(annotation => {
+    const description = annotation.description ?? '';
+    const valid = annotation.type === SCENARIO_ANNOTATION
+      ? description.split('/').length === 2 && description.split('/').every(isCoverageId)
+      : /^(support|exclude):\S[\s\S]*$/.test(description);
+    return valid ? [] : [{ annotation, reason: 'Invalid coverage classification or missing reason' }];
+  });
+  if (relevant.some(annotation => annotation.type === SCENARIO_ANNOTATION)
+    && relevant.some(annotation => annotation.type === COVERAGE_ANNOTATION)) {
+    errors.push({ annotation: relevant[0], reason: 'Scenario and support/exclude classifications cannot be combined' });
+  }
+  return errors;
 }
 
 /**
@@ -18,6 +39,7 @@ export function scenarioKey(pageId: string, scenarioId: string) {
 export function coverageScenario(
   ...scenarios: Array<readonly [pageId: string, scenarioId: string]>
 ) {
+  if (!scenarios.length) throw new Error('At least one coverage scenario is required');
   return {
     annotation: scenarios.map(([pageId, scenarioId]) => ({
       type: SCENARIO_ANNOTATION,
@@ -28,20 +50,22 @@ export function coverageScenario(
 
 /** Explicitly classify a useful supporting test that is not a coverage denominator. */
 export function coverageSupport(reason: string) {
+  if (!reason.trim()) throw new Error('Coverage support reason is required');
   return {
     annotation: {
       type: COVERAGE_ANNOTATION,
-      description: `support:${reason}`,
+      description: `support:${reason.trim()}`,
     },
   };
 }
 
 /** Explicitly classify setup/diagnostic tests that are outside product coverage. */
 export function coverageExclude(reason: string) {
+  if (!reason.trim()) throw new Error('Coverage exclusion reason is required');
   return {
     annotation: {
       type: COVERAGE_ANNOTATION,
-      description: `exclude:${reason}`,
+      description: `exclude:${reason.trim()}`,
     },
   };
 }
@@ -49,6 +73,7 @@ export function coverageExclude(reason: string) {
 export function scenarioKeysFromAnnotations(
   annotations: readonly CoverageAnnotation[] = [],
 ) {
+  if (coverageAnnotationErrors(annotations).length) return [];
   return annotations
     .filter(
       (annotation) =>
@@ -61,7 +86,7 @@ export function scenarioKeysFromAnnotations(
 export function hasCoverageClassification(
   annotations: readonly CoverageAnnotation[] = [],
 ) {
-  return annotations.some(
+  return coverageAnnotationErrors(annotations).length === 0 && annotations.some(
     (annotation) =>
       annotation.type === SCENARIO_ANNOTATION ||
       annotation.type === COVERAGE_ANNOTATION,
@@ -71,7 +96,7 @@ export function hasCoverageClassification(
 export function isCoverageOnlyClassification(
   annotations: readonly CoverageAnnotation[] = [],
 ) {
-  return annotations.some(
+  return hasCoverageClassification(annotations) && annotations.some(
     (annotation) => annotation.type === COVERAGE_ANNOTATION,
   );
 }
