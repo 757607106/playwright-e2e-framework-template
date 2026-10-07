@@ -18,3 +18,6 @@ allure-report/
 
 playwright/.auth/
 .auth/
+
+# Official Agent definitions are generated locally from the locked Playwright version.
+.codex/agents/playwright_test_*.toml

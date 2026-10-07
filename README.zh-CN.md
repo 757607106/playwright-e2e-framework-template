@@ -17,6 +17,10 @@ Linux 可用 `npx playwright install --with-deps chromium` 安装系统依赖。
 
 内置用例只访问本机：登录、API 创建临时计数器、UI 加一、接口确认结果、按 ID 删除，以及身份隔离和响应结构校验。通过这些用例只能说明框架可以运行。
 
+## 可选 Agent 测试
+
+执行 `npm run agents:init`，为兼容的 Codex 环境生成官方 Planner、Generator、Healer。先探索与审查计划，再生成并验证用例；失败修复必须依据证据。普通回归无需模型，继续复用现有清理、覆盖和报告。[使用步骤与边界](docs/agent-testing.md#中文快速使用)
+
 ## 接入自己的系统
 
 1. 将 `.env.example` 复制为 `.env`，设置测试环境 `BASE_URL` 和 `E2E_SKIP_EXAMPLES=true`。

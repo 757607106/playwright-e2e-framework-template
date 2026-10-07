@@ -32,6 +32,10 @@ Clone the repository or download a ZIP. ZIP usage does not require Git. Keep the
 
 The local example proves framework behavior only. It does not establish any product's business coverage. This is a source template, not a published npm package.
 
+## Optional test Agents
+
+Run `npm run agents:init` to generate the official Playwright planner/generator/healer for a compatible Codex host. Follow the [Agent workflow](docs/agent-testing.md). They help explore, generate and diagnose tests; ordinary regression has no model calls. Existing fixtures, coverage and reports are reused.
+
 ## Connect your application
 
 1. Copy `.env.example` to `.env`; set `BASE_URL` to an isolated test environment and `E2E_SKIP_EXAMPLES=true`.
@@ -46,6 +50,7 @@ Start with one worker. `E2E_ISOLATED_WORKERS=true` is an explicit acknowledgment
 
 | Command | Purpose |
 | --- | --- |
+| `npm run agents:init` | Initialize optional official test Agents for the local example |
 | `npm run quality:ci` | Typecheck, unit tests, AST rules, coverage mapping |
 | `npm run test:list` | Show discovered tests |
 | `npm run test:smoke` | Run the counter demo |

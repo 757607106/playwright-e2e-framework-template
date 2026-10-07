@@ -20,7 +20,8 @@
     "test:examples": "npm run prepare:reports && node scripts/run-playwright.cjs --project=local-example",
     "test:adoption": "node scripts/verify-adoption.cjs",
     "release:check": "npm run quality:ci && npm run public:check",
-    "test:lifecycle": "node scripts/verify-lifecycle.cjs"
+    "test:lifecycle": "node scripts/verify-lifecycle.cjs",
+    "agents:init": "node scripts/init-agents.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
