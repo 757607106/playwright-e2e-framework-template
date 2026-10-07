@@ -3,34 +3,44 @@ name: E2E Framework Quality
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  static-quality:
-    name: Static quality gates
-    runs-on: ubuntu-latest
+  framework:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 22
+          - os: windows-latest
+            node: 24
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: ${{ matrix.node }}
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run static quality gates
-        run: npm run quality:ci
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Run self-contained smoke test
-        run: npm run test:smoke
+      - run: npm ci
+      - run: npm run release:check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:adoption
+      - run: npm run test:lifecycle
+      - run: npm test
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: framework-reports-${{ matrix.os }}-node-${{ matrix.node }}
+          path: |
+            artifacts/quality-report
+            artifacts/playwright-report
+            artifacts/test-results
+          retention-days: 7
+          if-no-files-found: ignore

@@ -1,53 +1,106 @@
 # Adopt the framework in another test project
 
-The template is deliberately independent of a target application. Start with the local demo, then add only modules that the target system actually needs.
+## 1. Verify the source template
 
-## 1. Keep a clear dependency direction
+Use Node 22 or 24, run `npm ci`, install Chromium, then run `npm run quality:ci` and `npm test`. The default projects are `chromium` (all specs under `tests/e2e/`) and `local-example` (the loopback demonstration).
+
+A ZIP checkout works without Git. `npm run test:adoption` creates a temporary no-Git copy, runs static quality, adds and executes a new consumer spec, accepts adapter directories and verifies secret detection. It shares the installed dependencies and requires Chromium.
+
+When connecting your own application, copy `.env.example` to `.env`, set `BASE_URL` and `E2E_SKIP_EXAMPLES=true`. Alternatively keep examples enabled: they always use their own loopback URL. `EXAMPLE_PORT` changes the local port; an occupied port fails rather than silently attaching to an unrelated server.
+
+## 2. Maintain one dependency direction
 
 ```text
-Application tests
-  -> application fixtures, page actions, assertions, routes, data factories
-  -> reusable fixtures, coverage, HTTP helper, resource registry, reports
-  -> Playwright
+Application specs -> application fixtures/actions/contracts/data
+                  -> reusable fixtures/HTTP/coverage/cleanup/reports
+                  -> Playwright
 ```
 
-Framework modules must not import application routes, accounts, data factories, or product page models. Application modules may import framework modules. This makes upgrades and reuse possible without copying one product's assumptions.
+Keep verified application routes in `tests/support/api/routes.ts`. Add page actions under `tests/support/page-actions/`, data factories under `tests/support/data/`, and authentication under `tests/fixtures/` or `tests/setup/`. These directories are allowed by the public-content gate. The reusable core must not import application routes or accounts.
 
-## 2. Configure projects and identity
+## 3. Implement authentication
 
-Edit `playwright.config.ts` to define projects for the application's real test stages. Add setup dependencies only when a stage needs them. Keep browser state under ignored `artifacts/`; create it in the application setup project and load it only in dependent projects.
+The shared fixtures expose `workerStorageState`. Extend it using the target's verified login behavior. The local [authentication fixture](../examples/tests/fixtures.ts) is a working example of API-cookie authentication:
 
-Start with one worker. Increase the count only when each worker has an isolated account, browser state, and data scope. The runner enforces an explicit isolation flag for parallel work.
+```ts
+import { test as base, expect } from './index';
+export const test = base.extend({
+  workerStorageState: [async ({ browser }, use, workerInfo) => {
+    const context = await browser.newContext({
+      baseURL: workerInfo.project.use.baseURL,
+      storageState: undefined,
+    });
+    try {
+      // Perform verified UI/API login here. Allocate an isolated account using
+      // workerInfo.parallelIndex when tests modify shared server-side state.
+      // Assert successful login before reading authenticated state.
+      await use(await context.storageState());
+    } finally {
+      await context.close();
+    }
+  }, { scope: 'worker' }],
+});
+export { expect };
+```
 
-## 3. Build the application adapter
+This skeleton does not log in by itself. Replace the comments with the application's real login flow. Local storage/cookie authentication can reuse `storageState`; sessionStorage-based authentication needs an application-specific initialization hook. Do not log or commit credentials/state. Prefer CI secrets and ignored `artifacts/` if persistent state is required.
 
-Add these modules outside the reusable core:
+Each test still receives a separate BrowserContext. That does not isolate server-side state. Start with one worker; supply independent identities/data scopes before setting `TEST_WORKERS` above one and `E2E_ISOLATED_WORKERS=true`. The flag does not allocate accounts or prove isolation.
 
-| Application module | Responsibility |
-| --- | --- |
-| `tests/support/api/routes.ts` | Paths verified against the target's live contract and real network traffic |
-| `tests/support/application-model.ts` | Real page routes, labels, and stable UI contracts |
-| `tests/fixtures/auth.fixture.ts` | Login and authenticated browser state for the target |
-| `tests/support/page-actions/` | Reusable actions based on observed DOM and network state |
-| `tests/support/business-assertions.ts` | Outcome checks that prove the target's business behavior |
-| `tests/support/data/` | Per-run data factories and target-specific cleanup mapping |
+A setup project with dependent projects is also supported through native Playwright configuration when shared read-only authentication is appropriate. Avoid overriding both that configuration and `workerStorageState` for the same project.
 
-The template's API client does not assume a particular response envelope, success code, or authentication mechanism. The application integration supplies those verified contracts.
+## 4. Validate API responses at runtime
 
-## 4. Define coverage before writing a scenario
+Supply an application-verified type guard to receive typed JSON:
 
-Register a stable page ID and scenario ID in `tests/coverage/page-coverage.ts`. Add the scenario level, operations, and real requirement IDs when available. Bind the test with `coverageScenario`. Titles remain readable and can change without breaking the mapping.
+```ts
+const resource = await callApi({
+  request,
+  method: 'POST',
+  path: API_ROUTES.createResource,
+  expectedStatus: 201,
+  validate: isResource,
+});
+```
 
-L0 and L1 cover reachability and UI interaction. L2 requires a business result; L3 and L4 cover connected workflows. A discovered or mapped test is not a passed regression. The quality report records the actual execution state separately.
+Without `validate`, JSON is returned as `unknown`. HTTP and optional `expectedCode` assertions apply before validation. `expectedCode` refers to a top-level string `code`; use a custom validator for a different envelope. For an empty response, use `responseMode: 'empty'` and omit `expectedCode`. The helper disposes each APIResponse after reading it; retain parsed data rather than a response handle.
 
-## 5. Manage test data and cleanup
+Verify target method/path/parameters/body/status and schema from the live API contract and browser traffic before writing an adapter. The generic helper does not invent these contracts.
 
-Derive created data from `E2E_RUN_ID` or use backend-returned IDs. Register each created resource in the run registry. Implement an application cleanup callback that receives the exact resource ID, runs in reverse creation order, and records failures. Never widen a failed cleanup to a bulk deletion.
+## 5. Register data immediately and verify cleanup
 
-Keep destructive, payment, callback, and shared-configuration scenarios behind application-specific sandbox rules. The reusable core intentionally defines no such actions.
+Use the test-scoped `resources` fixture:
 
-## 6. Verify and publish
+```ts
+resources.track({ kind: 'resource', id: created.id }, async ({ id }) => {
+  await deleteByExactId(request, id);
+  await assertResourceAbsent(request, id);
+});
+```
 
-Run `npm run quality:ci` after framework changes. Run the affected real Playwright project after application tests change. Review the JSON/Markdown quality report, traces, API responses, and cleanup summary. Only actual browser execution against the target can establish a product E2E result.
+The application supplies those operations. Register immediately after creation, before subsequent assertions. Cleanup executes in reverse registration order during teardown, including failed test bodies. The API request context remains alive until resource teardown completes. Duplicate kind/ID registration in a test attempt is rejected.
 
-Before publishing a fork, inspect `git ls-files`, run `npm run public:check`, and review Git history. Removing a secret from the latest tree does not remove it from earlier commits. A new public repository should start from a clean-root snapshot or a carefully rewritten history.
+Each attempt has a ledger and summary at `artifacts/run-data/<runId>/<scopeId>/`. `scopeId` contains the test hash, worker slot, retry and repeat index. The summary is also attached to the test report. Unresolved cleanup fails the test; other registered resources still get a cleanup attempt. Error messages are not copied into the ledger because they may contain response secrets; inspect the exact ID and local cleanup adapter when recovering.
+
+Hard kills, machine shutdowns, and a failure between backend creation and ID receipt cannot guarantee automatic cleanup. Build an application recovery tool that reads the persisted ledger with `readResources(runId, scopeId)` and uses exact-ID, idempotent cleanup. Never widen deletion criteria after a failure. The older `registerResource`/`cleanupResources` functions remain available for run-wide application teardown; do not also register the same object in the fixture tracker.
+
+## 6. Bind meaningful coverage
+
+Register stable page/scenario IDs in `tests/coverage/page-coverage.ts`; import `coverageScenario` for real scenarios. Replace the demo and its coverage entry together. Support/framework checks use `coverageSupport('reason')`; they do not fill the product coverage denominator.
+
+L0/L1 describe reachability/interaction, L2 requires an actual business result, L3/L4 connected workflows. Mapped/discovered tests are not passed tests. Review the separate execution counts in `artifacts/quality-report/`.
+
+The selector requests broader regression when requirements, API changes or rule changes are unmapped. It recommends scope; it does not run tests or prove selected coverage is sufficient.
+
+## 7. Verify changes and publish
+
+Run `npm run quality:ci`, the affected real projects and inspect trace/API/cleanup evidence. Run `npm run test:lifecycle` after lifecycle changes; its harness asserts two intentional failures rather than adding failed tests to ordinary regression reports. CI exercises Linux/Node 22 and Windows/Node 24.
+
+Before public release, run `npm run release:check` and inspect both files and Git history. The public scan is heuristic; confidential product information and undetected secrets still need review. Reports may contain sensitive target data, so review CI artifact settings when adopting the workflow for a real system.
+
+## Migration from the initial snapshot
+
+- The demo-only `smoke` project is now `chromium`; `npm run test:smoke` retains its meaning. Update direct `--project=smoke` commands.
+- `npm test` also executes local examples by default. Set `E2E_SKIP_EXAMPLES=true` for application-only runs.
+- Explicit `callApi<MyType>(...)` requires a runtime validator. Add the actual contract guard or keep the result `unknown`.
+- Publication scanning moved from `quality:ci` to `release:check`; ordinary consumer quality checks permit application adapters.
