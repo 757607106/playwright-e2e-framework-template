@@ -20,6 +20,28 @@ test('consumer fixtures under the shared directory are accepted', () => {
   assert.deepEqual(checkTestSource("import { test } from '../fixtures/auth.fixture'; test('x', () => {});", 'tests/e2e/sample.spec.ts'), []);
 });
 
+test('formal specs cannot import model SDKs or generate recipes, but ordinary application methods remain valid', () => {
+  assert.ok(checkTestSource(header + "import { generateText } from 'ai';", 'tests/e2e/sample.spec.ts').some(error => error.includes('model imports')));
+  assert.ok(checkTestSource(header + "import { createOpenAICompatible } from '@ai-sdk/openai-compatible';", 'examples/tests/sample.spec.ts').some(error => error.includes('model imports')));
+  const file = resolve('tests/e2e/data-probe.spec.ts');
+  const source = ts.createSourceFile(file, header + `
+    import { recipe } from '../../examples/data/counter.recipe';
+    import type { ModelClient } from '../support/llm/client';
+    declare const application: { generate(): Promise<void> };
+    declare const model: ModelClient;
+    scenario('probe', async () => { await recipe.generate(); await model.generateObject({}); await application.generate(); });
+  `, ts.ScriptTarget.Latest, true);
+  const options: ts.CompilerOptions = { strict: true, skipLibCheck: true, esModuleInterop: true, resolveJsonModule: true, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS };
+  const host = ts.createCompilerHost(options);
+  const original = host.getSourceFile.bind(host);
+  host.getSourceFile = (name, languageVersion, onError, fresh) => resolve(name) === file ? source : original(name, languageVersion, onError, fresh);
+  const checker = ts.createProgram([file], options, host).getTypeChecker();
+  assert.deepEqual(checkTestSource(source, 'tests/e2e/data-probe.spec.ts', checker), [
+    'formal regression must replay data; recipe generation belongs in preparation scripts',
+    'formal regression must replay data; model requests belong in preparation scripts',
+  ]);
+});
+
 test('typed checks reject floating browser operations and assertions, while accepting returned or awaited promises', () => {
   const file = resolve('tests/e2e/typed-probe.spec.ts');
   const source = ts.createSourceFile(file, header + `

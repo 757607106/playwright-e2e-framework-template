@@ -1,0 +1,34 @@
+import { z } from 'zod';
+import { defineDataRecipe } from '../data-generation';
+
+// Replace these illustrative fields/rules with your reviewed application input contract.
+// This module generates candidate JSON only. Real HTTP calls belong in an application factory.
+const semanticSchema = z.strictObject({ title: z.string().min(1).max(80) });
+export const inputSchema = z.strictObject({
+  title: z.string(), quantity: z.number().int(), unitPriceCents: z.number().int(), totalCents: z.number().int(),
+});
+export type BusinessInput = z.infer<typeof inputSchema>;
+export const recipe = defineDataRecipe({
+  id: '__RECIPE_NAME__', version: '1', schema: inputSchema,
+  semantic: {
+    schema: semanticSchema, version: '1',
+    prompt: 'Generate a fictional product title for synthetic test data. No personal data, credentials, IDs or business assertions.',
+    offline: ({ faker }) => ({ title: faker.commerce.productName() }),
+  },
+  build: ({ faker, caseId }, semantic) => {
+    const quantity = caseId === 'minimum' ? 1 : faker.number.int({ min: 2, max: 20 });
+    const unitPriceCents = faker.number.int({ min: 100, max: 5000 });
+    return { ...semantic, quantity, unitPriceCents, totalCents: quantity * unitPriceCents };
+  },
+  rules: [
+    { id: 'quantity-range', check: input => input.quantity >= 1 && input.quantity <= 20 },
+    { id: 'price-range', check: input => input.unitPriceCents >= 100 && input.unitPriceCents <= 5000 },
+    { id: 'total-matches', check: input => input.totalCents === input.quantity * input.unitPriceCents },
+  ],
+  cases: [
+    { id: 'normal', description: 'An ordinary valid candidate' },
+    { id: 'minimum', description: 'The minimum quantity is accepted' },
+    { id: 'invalid-quantity', description: 'Zero quantity is rejected', expectedViolations: ['quantity-range'],
+      mutate: input => ({ ...input, quantity: 0, totalCents: 0 }) },
+  ],
+});

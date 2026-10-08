@@ -1,6 +1,6 @@
 ---
 name: playwright-business-testing
-description: 基于 playwright-e2e-framework-template 接入真实应用的业务自动化测试：配置登录与业务适配层、设计或新增场景、生成用例并验证结果，或诊断已有用例失败。适用于使用当前模板及其派生仓库的业务测试工作；普通前端开发和其他测试框架不适用。
+description: 基于 playwright-e2e-framework-template 接入真实应用的业务自动化测试：配置登录与业务适配层、设计或新增场景、准备可重放的业务数据或接入 LLM 数据生成、生成用例并验证结果，或诊断已有用例失败。适用于使用当前模板及其派生仓库的业务测试工作；普通前端开发和其他测试框架不适用。
 ---
 
 # Playwright 业务测试接入
@@ -18,6 +18,7 @@ description: 基于 playwright-e2e-framework-template 接入真实应用的业�
 | 用户目标 | 按需读取 | 交付物 |
 | --- | --- | --- |
 | 首次接入应用、登录或数据准备 | [接入说明](references/onboarding.md) | 已验证的应用配置与适配层，第一条用例或明确的待确认项 |
+| 生成业务数据、接入 LLM 或重放数据批次 | [测试数据](references/test-data.md) | 类型化配方、校验后的批次和真实接口 factory，回归只重放 |
 | 探索业务、设计计划、新增或扩展用例 | [场景与实现](references/scenarios.md) | 有证据的计划、覆盖登记和用户要求的测试代码 |
 | 执行回归、检查报告、修复失败 | [验证与诊断](references/verification.md) | 实际执行结果、清理结果、证据和必要的最小修复 |
 

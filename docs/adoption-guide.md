@@ -4,7 +4,7 @@ For AI-assisted application adoption, use the repository's [$playwright-business
 
 ## 1. Verify the source template
 
-Use Node 22 or 24, run `npm ci`, install Chromium, then run `npm run quality:ci` and `npm test`. The default projects are `chromium` (all specs under `tests/e2e/`) and `local-example` (the loopback demonstration).
+Use Node 22.13+ or 24, run `npm ci`, install Chromium, then run `npm run quality:ci` and `npm test`. The default projects are `chromium` (all specs under `tests/e2e/`) and `local-example` (the loopback demonstration).
 
 A ZIP checkout works without Git. `npm run test:adoption` creates a temporary no-Git copy, runs static quality, adds and executes a new consumer spec, accepts adapter directories and verifies secret detection. It shares the installed dependencies and requires Chromium.
 
@@ -89,6 +89,12 @@ Cleanup has a 5-second per-resource timeout and a 20-second overall budget, with
 Damaged ledger entries are reported with line numbers and without raw contents or inferred IDs. Validated records from the same run are still cleaned, and any damaged entry makes cleanup fail. `readResources` remains strict and rejects a damaged ledger; `cleanupResources` handles recovery of validated entries. Cleanup results may include a `kind: 'ledger'` issue without a resource ID.
 
 Hard kills, machine shutdowns, and a failure between backend creation and ID receipt cannot guarantee automatic cleanup. Build an application recovery tool that reads the persisted ledger with `readResources(runId, scopeId)` and uses exact-ID, idempotent cleanup. Never widen deletion criteria after a failure. The older `registerResource`/`cleanupResources` functions remain available for run-wide application teardown; do not also register the same object in the fixture tracker.
+
+### Prepare repeatable business input
+
+For repeatable input, run `npm run data:init -- --name business` to scaffold a recipe under `tests/support/data/`. Adapt its Zod schema, semantic fields, deterministic builder, named rules and positive/negative cases. Run `npm run data:generate -- --recipe tests/support/data/business.recipe.ts`, review the JSON and provision its printed dataset ID using `DATASET_ID`.
+
+Specs obtain the validated batch with `await testData.load(recipe)` from the unified fixture. Application factories materialize inputs through verified APIs, bind real dependency IDs and immediately register exact cleanup. The reader attaches manifest metadata and never requests a model. Independent preparation uses offline Faker by default; explicit LLM mode enriches only permitted semantic fields. See the [data guide](test-data.md) and [local data example](../examples/tests/generated-data.spec.ts). Missing/changed batches fail rather than silently generating new regression input.
 
 ## 6. Bind meaningful coverage
 

@@ -2,8 +2,9 @@ import { test as base, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { ResourceTracker, assertCleanupComplete } from '../support/resource-tracker';
+import { TestDataReader } from '../support/data-generation/fixture';
 
-type Fixtures = { runId: string; resources: ResourceTracker };
+type Fixtures = { runId: string; resources: ResourceTracker; testData: TestDataReader };
 type WorkerFixtures = { workerStorageState: Awaited<ReturnType<BrowserContext['storageState']>> | undefined };
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
@@ -11,6 +12,11 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   storageState: async ({ workerStorageState }, use) => { await use(workerStorageState); },
   runId: async ({}, use) => {
     await use(process.env.E2E_RUN_ID || 'local');
+  },
+  testData: async ({}, use, testInfo) => {
+    await use(new TestDataReader(async (name, body) => {
+      await testInfo.attach(name, { body, contentType: 'application/json' });
+    }));
   },
   resources: [async ({ runId, request }, use, testInfo) => {
     void request; // Cleanup callbacks may use this context; dispose it after resource teardown.

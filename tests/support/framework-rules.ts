@@ -8,6 +8,7 @@ export function checkTestSource(source: string | ts.SourceFile, file: string, ch
   let fixtureImport = false;
   for (const statement of tree.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (file.endsWith('.spec.ts') && /^(?:ai(?:\/|$)|@ai-sdk\/)/.test(statement.moduleSpecifier.text)) errors.push('formal regression must replay data; model imports belong in preparation scripts');
     const imports = statement.importClause?.namedBindings;
     if (!imports || !ts.isNamedImports(imports)) continue;
     for (const item of imports.elements) {
@@ -44,6 +45,11 @@ export function checkTestSource(source: string | ts.SourceFile, file: string, ch
         : ts.isElementAccessExpression(expression) && expression.argumentExpression && ts.isStringLiteral(expression.argumentExpression) ? expression.argumentExpression.text : undefined;
       if (method === 'only' && aliases.has(rootName(expression) || '')) errors.push('exclusive tests are forbidden');
       if (method === 'waitForTimeout') errors.push('fixed waits are forbidden');
+      if (spec && checker && ['generate', 'generateObject'].includes(method ?? '')) {
+        const declaration = checker.getResolvedSignature(node)?.declaration;
+        if (declaration?.getSourceFile().fileName.replaceAll('\\', '/').endsWith('/support/data-generation/types.ts')) errors.push('formal regression must replay data; recipe generation belongs in preparation scripts');
+        if (declaration?.getSourceFile().fileName.replaceAll('\\', '/').endsWith('/support/llm/client.ts')) errors.push('formal regression must replay data; model requests belong in preparation scripts');
+      }
       if (spec && method && ['click', 'dblclick', 'check', 'uncheck', 'fill', 'hover', 'selectOption', 'tap', 'setChecked', 'press'].includes(method)) {
         for (const argument of node.arguments) if (ts.isObjectLiteralExpression(argument)) {
           for (const property of argument.properties) if (ts.isPropertyAssignment(property) && property.name.getText(tree).replace(/['"]/g, '') === 'force' && property.initializer.kind === ts.SyntaxKind.TrueKeyword) errors.push('forced UI actions are forbidden');

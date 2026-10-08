@@ -5,6 +5,12 @@
   "description": "Reusable Playwright and TypeScript E2E framework template",
   "license": "MIT",
   "scripts": {
+    "model:check": "node --import tsx scripts/model-check.ts",
+    "data:init": "node --import tsx scripts/test-data.ts init",
+    "data:generate": "node --import tsx scripts/test-data.ts generate",
+    "data:validate": "node --import tsx scripts/test-data.ts validate",
+    "data:inspect": "node --import tsx scripts/test-data.ts inspect",
+    "test:data": "node scripts/run-data-example.cjs",
     "typecheck": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
     "test:unit": "node scripts/run-unit-tests.cjs",
     "framework:check": "node --import tsx scripts/framework-check.ts",
@@ -24,15 +30,22 @@
     "agents:init": "node scripts/init-agents.cjs"
   },
   "devDependencies": {
+    "@ai-sdk/anthropic": "4.0.76",
+    "@ai-sdk/google": "4.0.92",
+    "@ai-sdk/openai": "4.0.89",
+    "@ai-sdk/openai-compatible": "3.0.66",
+    "@faker-js/faker": "10.6.0",
     "@playwright/test": "^1.61.0",
     "@types/node": "^22.0.0",
+    "ai": "7.0.133",
     "allure-commandline": "^2.32.0",
     "allure-playwright": "^3.0.0",
     "dotenv": "^16.4.5",
     "tsx": "^4.22.4",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "zod": "4.6.5"
   },
   "engines": {
-    "node": ">=22"
+    "node": "^22.13.0 || >=24.0.0"
   }
 }

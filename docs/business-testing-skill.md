@@ -31,6 +31,12 @@ Skill 不依赖模型 API 密钥写入这个仓库。模型访问由使用者的
 
 > 使用 $playwright-business-testing 根据现有订单需求和测试，补充只读角色不能修改订单的场景。先核对 UI/API 权限契约，再复用已有数据和登录适配；只运行本次涉及的用例。
 
+准备业务数据：
+
+> 使用 $playwright-business-testing 根据已确认的采购输入契约建立数据配方，覆盖正常值、数量边界和受控负例。先离线生成并验证批次，再接入本地配置的 LLM 生成标题与备注；正式回归只重放已审查批次，由真实接口 factory 创建并精确清理。模型未配置时先完成离线部分，说明在线验证限制。
+
+数据准备使用 [框架的数据生成与重放能力](test-data.md)。按[配置指南](configuration.md)设置 `MODEL_NAME`、`API_BASE_URL`、`API_KEY`，供应商扩展放在 `model.config.ts`。模型访问配置与 Skill 宿主的模型账号相互独立；正式重放只需要已审查批次。
+
 诊断失败：
 
 > 使用 $playwright-business-testing 诊断指定订单用例失败，报告在 artifacts/playwright-report/。先检查 trace、网络和清理摘要，仅修复有证据的脚本缺陷，保留真实业务或环境失败。

@@ -19,7 +19,7 @@ test('Counter: UI increment persists through API and cleans exact ID', support, 
   expect((await changed).status()).toBe(200);
   await expect(page.getByLabel('Count')).toHaveText('1');
   const persisted = await callApi({ request, method: 'GET', path: EXAMPLE_ROUTES.resource(resource.id), expectedStatus: 200, validate: isCounterResource });
-  expect(persisted).toEqual({ id: resource.id, value: 1 });
+  expect(persisted).toEqual({ id: resource.id, value: 1, label: 'Counter' });
 });
 
 test('Session: unauthenticated context is rejected', support, async ({ playwright, baseURL }) => {

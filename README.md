@@ -2,11 +2,11 @@
 
 A reusable Playwright + TypeScript source template with native fixtures, typed API contracts, precise cleanup, coverage mapping and execution reports.
 
-[中文说明](README.zh-CN.md) · [Adoption guide](docs/adoption-guide.md) · [Architecture](docs/architecture.md)
+[中文说明](README.zh-CN.md) · [Adoption guide](docs/adoption-guide.md) · [Architecture](docs/architecture.md) · [Configuration](docs/configuration.md) · [Contributing](CONTRIBUTING.md)
 
 ## Start locally
 
-Use Node.js **22 or 24** and npm. CI covers Linux/Node 22 and Windows/Node 24; macOS is also verified locally. No application account or external service is needed for bundled tests.
+Use Node.js **22.13+ or 24** and npm. CI covers Linux/Node 22 and Windows/Node 24; macOS is also verified locally. No application account or external service is needed for bundled tests.
 
 ```bash
 npm ci
@@ -26,6 +26,7 @@ Clone the repository or download a ZIP. ZIP usage does not require Git. Keep the
 - `workerStorageState` extension and a new isolated browser context per test.
 - `resources.track(...)` fixture: per-test-attempt ledger, reverse-order cleanup, summary attachment, failed cleanup fails the test.
 - API status/business-code assertions, runtime schema validators, explicit empty responses and response disposal.
+- Typed business data recipes, optional LLM semantic generation, deterministic Faker/boundary fields, named-rule validation and immutable dataset replay.
 - Stable `pageId/scenarioId` mapping, execution-state reports and conservative regression selection.
 - HTML/Allure reports, trace/video/screenshots and previous-run report archives.
 - Syntax-aware baseline checks and typed floating-promise checks, no-Git adoption checks, and Linux/Windows CI.
@@ -52,11 +53,30 @@ For example: “Use $playwright-business-testing to inspect our requirements and
 
 Start with one worker. `E2E_ISOLATED_WORKERS=true` is an explicit acknowledgment, not proof of isolation. Increase workers only after implementing independent accounts/data scopes. See the [adoption guide](docs/adoption-guide.md) for concrete examples and recovery limitations.
 
+## Business test data
+
+Run `npm run test:data` for a complete offline data demonstration: prepare a frozen batch, create real localhost resources, verify UI/backend results and clean their exact IDs. `npm test` also includes these examples.
+
+```bash
+npm run data:init -- --name business
+npm run data:generate -- --recipe tests/support/data/business.recipe.ts --seed 42 --per-case 2
+```
+
+Adapt the generated recipe's schema, deterministic fields, named business rules and controlled negative cases to your input contract. Supply the printed dataset ID to the shared `testData.load(recipe, { datasetId })` fixture, then use your application factory to create resources and register returned IDs. Saved datasets remain under ignored `artifacts/test-data/`.
+
+Model preparation is opt-in (`--mode llm`) and uses shared `MODEL_NAME`, `API_BASE_URL`, `API_KEY` settings. A provider registry supports OpenAI Responses/Chat Completions, compatible services, Anthropic, Google and additional SDK adapters; `MODEL_OUTPUT_MODE` selects schema, JSON or validated text. See the [connection reference](docs/configuration.md). Normal regression only replays reviewed datasets; missing or incompatible batches fail clearly. Models generate semantic fields, while code controls numeric constraints/calculations and the backend supplies real IDs/states. See the [data guide](docs/test-data.md), [working recipe](examples/data/counter.recipe.ts) and [factory](examples/data/counter.factory.ts).
+
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
+| `npm run model:check` | Validate model configuration/adapter without a request; `--list` shows supported protocols |
 | `npm run agents:init` | Initialize optional official test Agents for the local example |
+| `npm run data:init -- --name business` | Scaffold an application-owned typed data recipe without overwriting files |
+| `npm run data:generate -- --recipe <path>` | Prepare and freeze a batch; offline by default, explicit `--mode llm` for models |
+| `npm run data:validate -- --recipe <path> --dataset <id>` | Revalidate a provisioned batch without generating data |
+| `npm run data:inspect -- --recipe <path> --dataset <id>` | Validate and show metadata; payloads stay in the saved JSON |
+| `npm run test:data` | Run the complete offline data preparation / replay / cleanup demonstration |
 | `npm run quality:ci` | Typecheck, unit tests, AST rules, coverage mapping |
 | `npm run test:list` | Show discovered tests |
 | `npm run test:smoke` | Run the counter demo |

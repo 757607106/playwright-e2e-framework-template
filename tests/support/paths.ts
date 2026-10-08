@@ -11,3 +11,4 @@ export const ALLURE_HISTORY_DIR = resolve(ARTIFACTS_DIR, 'allure-history');
 export const QUALITY_REPORT_DIR = resolve(ARTIFACTS_DIR, 'quality-report');
 export const REPORT_HISTORY_DIR = resolve(ARTIFACTS_DIR, 'history');
 export const RUN_DATA_DIR = resolve(ARTIFACTS_DIR, 'run-data');
+export const DATASET_DIR = resolve(ARTIFACTS_DIR, 'test-data');

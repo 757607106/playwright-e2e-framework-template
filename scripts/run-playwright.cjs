@@ -2,6 +2,7 @@
 const { spawnSync } = require('node:child_process');
 const { resolve } = require('node:path');
 const { withReportLock } = require('./report-lock.cjs');
+require('dotenv').config({ path: resolve(__dirname, '../.env'), quiet: true });
 
 function runNode(args) {
   const result = spawnSync(process.execPath, args, { stdio: 'inherit' });
@@ -10,6 +11,10 @@ function runNode(args) {
 }
 
 withReportLock(resolve(__dirname, '../artifacts'), () => {
+  // Bundled examples work out of the box. Application regression must provision its own frozen batch.
+  if (process.env.E2E_SKIP_EXAMPLES !== 'true' && !process.env.E2E_EXAMPLE_DATASET && !process.argv.includes('--list')) {
+    require('./prepare-example-data.cjs').prepareExampleData();
+  }
   const preparationStatus = runNode(['--import', 'tsx', resolve(__dirname, 'prepare-reports.ts')]);
   if (preparationStatus) { process.exitCode = preparationStatus; return; }
   const testStatus = runNode([

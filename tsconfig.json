@@ -18,6 +18,7 @@
     "tests/**/*.ts",
     "scripts/**/*.ts",
     "playwright.config.ts",
+    "model.config.ts",
     "examples/**/*.ts"
   ]
 }
