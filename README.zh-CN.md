@@ -36,4 +36,4 @@ Linux 可用 `npx playwright install --with-deps chromium` 安装系统依赖。
 
 清理默认每个资源最多 5 秒、每次清理最多 20 秒，逐项保存结果。损坏账本中的有效记录仍按精确 ID 清理；损坏记录和超时保持未解决状态，使测试失败。同一工作目录的测试与报告生成采用运行锁，第二轮会被拒绝以保护报告；需要同时运行时使用独立目录。强制终止后，确认锁文件记录的进程已经退出，再移除 `artifacts/.report-lock`。
 
-[完整接入指南](docs/adoption-guide.md) · [框架边界](docs/architecture.md) · [优秀开源项目分析与取舍](docs/reference-projects.md) · [英文命令表](README.md#commands)
+[完整接入指南](docs/adoption-guide.md) · [框架边界](docs/architecture.md) · [英文命令表](README.md#commands)

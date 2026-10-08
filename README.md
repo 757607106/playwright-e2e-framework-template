@@ -2,7 +2,7 @@
 
 A reusable Playwright + TypeScript source template with native fixtures, typed API contracts, precise cleanup, coverage mapping and execution reports.
 
-[中文说明](README.zh-CN.md) · [Adoption guide](docs/adoption-guide.md) · [Architecture](docs/architecture.md) · [Reference project analysis](docs/reference-projects.md)
+[中文说明](README.zh-CN.md) · [Adoption guide](docs/adoption-guide.md) · [Architecture](docs/architecture.md)
 
 ## Start locally
 
