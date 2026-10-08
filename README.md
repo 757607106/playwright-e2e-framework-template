@@ -36,6 +36,12 @@ The local example proves framework behavior only. It does not establish any prod
 
 Run `npm run agents:init` to generate the official Playwright planner/generator/healer for a compatible Codex host. Follow the [Agent workflow](docs/agent-testing.md). They help explore, generate and diagnose tests; ordinary regression has no model calls. Existing fixtures, coverage and reports are reused.
 
+## Business testing Skill
+
+The repository includes [$playwright-business-testing](.agents/skills/playwright-business-testing/SKILL.md) under `.agents/skills/`. Keep that directory when adopting the template. In a compatible Codex host, invoke the Skill to connect verified application authentication/contracts, plan scenarios, implement tests, register coverage, clean exact resource IDs and validate results. It can also diagnose a named failure using existing evidence.
+
+For example: “Use $playwright-business-testing to inspect our requirements and API contracts, connect authentication, and plan purchase approval tests. Do not execute mutations in this phase.” See the [usage guide and prompts](docs/business-testing-skill.md) (Chinese). Optional official test Agents are not required; ordinary Playwright regression remains unchanged.
+
 ## Connect your application
 
 1. Copy `.env.example` to `.env`; set `BASE_URL` to an isolated test environment and `E2E_SKIP_EXAMPLES=true`.

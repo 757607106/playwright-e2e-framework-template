@@ -1,5 +1,7 @@
 # Adopt the framework in another test project
 
+For AI-assisted application adoption, use the repository's [$playwright-business-testing](../.agents/skills/playwright-business-testing/SKILL.md). The [Skill usage guide](business-testing-skill.md) explains discovery, required business evidence and example prompts. The contracts below also apply to manually written tests.
+
 ## 1. Verify the source template
 
 Use Node 22 or 24, run `npm ci`, install Chromium, then run `npm run quality:ci` and `npm test`. The default projects are `chromium` (all specs under `tests/e2e/`) and `local-example` (the loopback demonstration).

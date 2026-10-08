@@ -1,0 +1,4 @@
+interface:
+  display_name: "Playwright 业务测试接入"
+  short_description: "基于当前框架接入真实业务，完成场景计划、用例生成、数据清理和验证"
+  default_prompt: "使用 $playwright-business-testing 为当前应用接入业务自动化测试，先检查已有契约和环境，再完成所需场景与验证。"

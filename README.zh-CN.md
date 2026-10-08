@@ -21,6 +21,12 @@ Linux 可用 `npx playwright install --with-deps chromium` 安装系统依赖。
 
 执行 `npm run agents:init`，为兼容的 Codex 环境生成官方 Planner、Generator、Healer。先探索与审查计划，再生成并验证用例；失败修复必须依据证据。普通回归无需模型，继续复用现有清理、覆盖和报告。[使用步骤与边界](docs/agent-testing.md#中文快速使用)
 
+## 用 Skill 接入业务
+
+项目自带 `$playwright-business-testing`，随 `.agents/skills/` 分发。用支持本地 Skills 的 Codex 打开自己的业务测试仓库后，可以让它依据真实需求完成登录与接口接入、场景计划、用例生成、覆盖登记、清理和验证。[使用说明与请求示例](docs/business-testing-skill.md)
+
+例如：“使用 $playwright-business-testing 为采购系统接入自动化测试，先读取仓库里的需求和接口文档，完成登录接入并输出采购单提交审批的测试计划。”账号从本地环境或 CI secrets 提供；普通回归仍用现有 Playwright 命令。
+
 ## 接入自己的系统
 
 1. 将 `.env.example` 复制为 `.env`，设置测试环境 `BASE_URL` 和 `E2E_SKIP_EXAMPLES=true`。

@@ -2,6 +2,8 @@
 
 [中文步骤](#中文快速使用)
 
+For application onboarding with the current assistant, the repository also provides [$playwright-business-testing](../.agents/skills/playwright-business-testing/SKILL.md). It reuses this workflow when official Agents are requested and available; it can complete adoption directly without initializing them. See the [Skill usage guide](business-testing-skill.md).
+
 ## Scope
 
 This template integrates the official Playwright planner/generator/healer as a development workflow. Committed tests still run with the existing Playwright runner, fixtures, coverage and reporters. Ordinary `npm test` and CI do not call a language model.
